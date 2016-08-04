@@ -314,6 +314,11 @@ class ConcreteContext2 {
 }
 
 class ConcreteContext3 {
+
+  typealias AnotherNSCoding = NSCoding
+  typealias MetaNSCoding1 = NSCoding.Protocol
+  typealias MetaNSCoding2 = AnotherNSCoding.Protocol
+
   func dynamicSelf1() -> Self { return self }
 
   @objc func dynamicSelf1_() -> Self { return self }
@@ -321,6 +326,18 @@ class ConcreteContext3 {
 
   @objc func genericParams<T: NSObject>() -> [T] { return [] }
   // expected-error@-1{{method cannot be marked @objc because it has generic parameters}}
+
+  @objc func returnObjCProtocolMetatype() -> NSCoding.Protocol { return NSCoding.self }
+  // expected-error@-1{{method cannot be marked @objc because its result type cannot be represented in Objective-C}}
+
+  @objc func returnObjCAliasProtocolMetatype1() -> AnotherNSCoding.Protocol { return NSCoding.self }
+  // expected-error@-1{{method cannot be marked @objc because its result type cannot be represented in Objective-C}}
+
+  @objc func returnObjCAliasProtocolMetatype2() -> MetaNSCoding1 { return NSCoding.self }
+  // expected-error@-1{{method cannot be marked @objc because its result type cannot be represented in Objective-C}}
+
+  @objc func returnObjCAliasProtocolMetatype3() -> MetaNSCoding2 { return NSCoding.self }
+  // expected-error@-1{{method cannot be marked @objc because its result type cannot be represented in Objective-C}}
 }
 
 func genericContext1<T>(_: T) {

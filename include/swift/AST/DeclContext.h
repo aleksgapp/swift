@@ -626,7 +626,40 @@ private:
   /// member is an invisible addition.
   void addMemberSilently(Decl *member, Decl *hint = nullptr) const;
 };
-  
+
+class AccessScope {
+  llvm::PointerIntPair<const DeclContext *, 1, bool> DeclContextAndScope;
+public:
+  AccessScope(const DeclContext *Context, bool isPrivate)
+    : DeclContextAndScope(Context, isPrivate) {}
+
+  static constexpr const intptr_t INVALID = -1;
+
+  bool isPublic() const {
+      return DeclContextAndScope.getPointer() == nullptr;
+  }
+
+  bool isModuleScope() const {
+      return DeclContextAndScope.getPointer()->isModuleContext();
+  }
+
+  bool isPrivate() const {
+    return DeclContextAndScope.getInt();
+  }
+
+  const DeclContext *getDeclContext() const {
+    return DeclContextAndScope.getPointer();
+  }
+
+  bool isChildScopeOf(const AccessScope *accessScope) const {
+    auto targetDeclContext = accessScope->getDeclContext();
+    return getDeclContext()->isChildContextOf(targetDeclContext);
+  }
+
+};
+
+using AccessScopeRef = std::shared_ptr<const AccessScope>;
+
 } // end namespace swift
 
 namespace llvm {

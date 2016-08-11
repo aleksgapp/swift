@@ -2213,7 +2213,7 @@ public:
   ///
   /// \sa getFormalAccess
   /// \sa isAccessibleFrom
-  const DeclContext *
+  const AccessScopeRef
   getFormalAccessScope(const DeclContext *useDC = nullptr) const;
 
   /// Returns the access level that actually controls how a declaration should

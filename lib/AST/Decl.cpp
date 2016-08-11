@@ -1892,7 +1892,7 @@ Accessibility ValueDecl::getFormalAccessImpl(const DeclContext *useDC) const {
   return getFormalAccess();
 }
 
-const DeclContext *
+const AccessScopeRef
 ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   const DeclContext *result = getDeclContext();
   Accessibility access = getFormalAccess(useDC);
@@ -1900,11 +1900,11 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
 
   while (!result->isModuleScopeContext()) {
     if (result->isLocalContext())
-      return result;
+      return std::make_shared<AccessScope>(result, true);
 
     if (access == Accessibility::Private && !swift3PrivateChecked) {
       if (result->getASTContext().LangOpts.EnableSwift3Private)
-        return result;
+        return std::make_shared<AccessScope>(result, true);
       swift3PrivateChecked = true;
     }
 
@@ -1927,19 +1927,22 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
     result = result->getParent();
   }
 
-  switch (access) {
-  case Accessibility::Private:
-  case Accessibility::FilePrivate:
-    assert(result->isModuleScopeContext());
-    return result;
-  case Accessibility::Internal:
-    return result->getParentModule();
-  case Accessibility::Public:
-  case Accessibility::Open:
-    return nullptr;
-  }
+  bool isPrivate = access == Accessibility::Private;
+  auto DC = [&]() -> const DeclContext * {
+    switch (access) {
+    case Accessibility::Private:
+    case Accessibility::FilePrivate:
+      assert(result->isModuleScopeContext());
+      return result;
+    case Accessibility::Internal:
+      return result->getParentModule();
+    case Accessibility::Public:
+    case Accessibility::Open:
+      return nullptr;
+    }
+  }();
 
-  return result;
+  return std::make_shared<AccessScope>(DC, isPrivate);
 }
 
 

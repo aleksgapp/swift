@@ -477,7 +477,7 @@ public:
   /// during type checking.
   llvm::SetVector<NominalTypeDecl *> ValidatedTypes;
 
-  using TypeAccessScopeCacheMap = llvm::DenseMap<Type, const DeclContext *>;
+  using TypeAccessScopeCacheMap = llvm::DenseMap<Type, AccessScopeRef>;
 
   /// Caches the outermost scope where a particular type can be used, relative
   /// to a particular file.

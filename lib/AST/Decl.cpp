@@ -1928,21 +1928,23 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   }
 
   bool isPrivate = access == Accessibility::Private;
-  auto DC = [&]() -> const DeclContext * {
-    switch (access) {
-    case Accessibility::Private:
-    case Accessibility::FilePrivate:
-      assert(result->isModuleScopeContext());
-      return result;
-    case Accessibility::Internal:
-      return result->getParentModule();
-    case Accessibility::Public:
-    case Accessibility::Open:
-      return nullptr;
-    }
-  }();
 
-  return std::make_shared<AccessScope>(DC, isPrivate);
+  const DeclContext *DC = nullptr;
+  switch (access) {
+  case Accessibility::Private:
+  case Accessibility::FilePrivate:
+    assert(result->isModuleScopeContext());
+    DC = result;
+    break;
+  case Accessibility::Internal:
+    DC = result->getParentModule();
+    break;
+  case Accessibility::Public:
+  case Accessibility::Open:
+    break;
+  }
+
+  return DC ? std::make_shared<AccessScope>(DC, isPrivate) : nullptr;
 }
 
 

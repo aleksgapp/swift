@@ -635,10 +635,6 @@ public:
 
   static constexpr const intptr_t INVALID = -1;
 
-  bool isPublic() const {
-      return DeclContextAndScope.getPointer() == nullptr;
-  }
-
   bool isModuleScope() const {
       return DeclContextAndScope.getPointer()->isModuleContext();
   }
@@ -658,7 +654,7 @@ public:
 
 };
 
-using AccessScopeRef = std::shared_ptr<const AccessScope>;
+using AccessScopeRef = std::shared_ptr<AccessScope>;
 
 } // end namespace swift
 

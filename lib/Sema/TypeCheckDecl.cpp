@@ -1189,11 +1189,11 @@ class TypeAccessScopeChecker : private TypeWalker {
       return AccessScope::INVALID;
 
     auto firstAS = *reinterpret_cast<AccessScopeRef *>(first);
-    if (!firstAS || firstAS->isPublic())
+    if (!firstAS)
       return second;
 
     auto secondAS = *reinterpret_cast<AccessScopeRef *>(second);
-    if (!second || secondAS->isPublic())
+    if (!second)
       return first;
 
     if (&*firstAS == &*secondAS)
@@ -1238,7 +1238,8 @@ class TypeAccessScopeChecker : private TypeWalker {
   }
 
 public:
-  static const AccessScopeRef
+  // TODO: make this to return Optional again
+  static Optional<const AccessScope *>
   getAccessScope(Type ty, const DeclContext *useDC,
                  decltype(TypeChecker::TypeAccessScopeCache) &caches) {
     const SourceFile *file = useDC->getParentSourceFile();
@@ -1247,7 +1248,7 @@ public:
     auto iter = cache.find(ty);
     if (iter == cache.end())
       return nullptr;
-    return iter->second;
+    return &*iter->second;
   }
 };
 
@@ -1280,12 +1281,12 @@ void TypeChecker::computeDefaultAccessibility(ExtensionDecl *ED) {
                                                  ED->getDeclContext(),
                                                  TypeAccessScopeCache);
       // This is an error case and will be diagnosed elsewhere.
-      if (!scopeDC)
+      if (!scopeDC.hasValue())
         return Accessibility::Public;
 
-      if (scopeDC->isPublic())
-        return Accessibility::Public;
-      if (isa<ModuleDecl>(scopeDC->getDeclContext()))
+      if (!scopeDC.getValue())
+          return Accessibility::Public;
+      if (isa<ModuleDecl>(scopeDC.getValue()->getDeclContext()))
         return Accessibility::Internal;
       // Because extensions are always at top-level, they should never
       // reference declarations not at the top level. (And any such references
@@ -1423,7 +1424,7 @@ void TypeChecker::computeAccessibility(ValueDecl *D) {
 namespace {
 
 class TypeAccessScopeDiagnoser : private ASTWalker {
-  const AccessScopeRef accessScope;
+  const AccessScope *accessScope;
   const DeclContext *useDC;
   const ComponentIdentTypeRepr *offendingType = nullptr;
 
@@ -1440,7 +1441,7 @@ class TypeAccessScopeDiagnoser : private ASTWalker {
     if (!VD)
       return true;
 
-    if (VD->getFormalAccessScope(useDC) != accessScope)
+    if (&*VD->getFormalAccessScope(useDC) != accessScope)
       return true;
 
     offendingType = CITR;
@@ -1452,13 +1453,13 @@ class TypeAccessScopeDiagnoser : private ASTWalker {
     return offendingType != nullptr;
   }
 
-  explicit TypeAccessScopeDiagnoser(const AccessScopeRef accessScope,
+  explicit TypeAccessScopeDiagnoser(const AccessScope *accessScope,
                                     const DeclContext *useDC)
     : accessScope(accessScope), useDC(useDC) {}
 
 public:
   static const TypeRepr *findTypeWithScope(TypeRepr *TR,
-                                           const AccessScopeRef accessScope,
+                                           const AccessScope *accessScope,
                                            const DeclContext *useDC) {
     assert(accessScope && "why would we need to find a public access scope?");
     TypeAccessScopeDiagnoser diagnoser(accessScope, useDC);
@@ -1481,15 +1482,14 @@ public:
 static void checkTypeAccessibilityImpl(
     TypeChecker &TC, TypeLoc TL, const AccessScopeRef contextAccessScope,
     const DeclContext *useDC,
-    llvm::function_ref<void(const AccessScopeRef, const TypeRepr *)> diagnose) {
+    llvm::function_ref<void(const AccessScope *, const TypeRepr *)> diagnose) {
   if (!TC.getLangOpts().EnableAccessControl)
     return;
   if (!TL.getType())
     return;
   // Don't spend time checking private access; this is always valid by the time
   // we get to this point. This includes local declarations.
-  auto contextAccessContext = contextAccessScope->getDeclContext();
-  if (contextAccessContext && !isa<ModuleDecl>(contextAccessContext))
+  if (contextAccessScope && !isa<ModuleDecl>(contextAccessScope->getDeclContext()))
     return;
 
     auto typeAccessScope =
@@ -1499,24 +1499,24 @@ static void checkTypeAccessibilityImpl(
   // Note: This means that the type itself is invalid for this particular
   // context, because it references declarations from two incompatible scopes.
   // In this case we should have diagnosed the bad reference already.
-  if (!typeAccessScope)
+  if (!typeAccessScope.hasValue())
     return;
 
-  if (!typeAccessScope->isPublic() || typeAccessScope == contextAccessScope)
+  if (*typeAccessScope || *typeAccessScope == &*contextAccessScope)
     return;
 
   const TypeRepr *complainRepr = nullptr;
   if (TypeRepr *TR = TL.getTypeRepr()) {
     complainRepr =
-        TypeAccessScopeDiagnoser::findTypeWithScope(TR, typeAccessScope,
+        TypeAccessScopeDiagnoser::findTypeWithScope(TR, *typeAccessScope,
                                                     useDC);
   }
-  diagnose(typeAccessScope, complainRepr);
+  diagnose(*typeAccessScope, complainRepr);
 }
 
 static void checkTypeAccessibility(
     TypeChecker &TC, TypeLoc TL, const ValueDecl *context,
-    llvm::function_ref<void(const AccessScopeRef, const TypeRepr *)> diagnose) {
+    llvm::function_ref<void(const AccessScope *, const TypeRepr *)> diagnose) {
   checkTypeAccessibilityImpl(TC, TL, context->getFormalAccessScope(),
                              context->getDeclContext(), diagnose);
 }
@@ -1546,15 +1546,18 @@ static void highlightOffendingType(TypeChecker &TC, InFlightDiagnostic &diag,
 ///
 /// \sa ValueDecl::getFormalAccessScope
 static Accessibility
-accessibilityFromScopeForDiagnostics(const AccessScopeRef accessScope) {
-  if (!accessScope || accessScope->isPublic())
+accessibilityFromScopeForDiagnostics(const AccessScope *accessScope) {
+  if (!accessScope)
     return Accessibility::Public;
-  if (isa<ModuleDecl>(accessScope->getDeclContext()))
+
+  const DeclContext *DC = accessScope->getDeclContext();
+  if (DC && isa<ModuleDecl>(DC))
     return Accessibility::Internal;
   if (accessScope->isModuleScope() &&
-      accessScope->getDeclContext()->getASTContext().LangOpts.EnableSwift3Private) {
+      DC->getASTContext().LangOpts.EnableSwift3Private) {
     return Accessibility::FilePrivate;
   }
+
   return Accessibility::Private;
 }
 
@@ -1571,7 +1574,7 @@ static void checkGenericParamAccessibility(TypeChecker &TC,
     AEK_Parameter = 0,
     AEK_Requirement
   } accessibilityErrorKind;
-  AccessScopeRef minAccessScope = nullptr;
+  const AccessScope *minAccessScope = nullptr;
   const TypeRepr *complainRepr = nullptr;
 
   for (auto param : *params) {
@@ -1580,7 +1583,7 @@ static void checkGenericParamAccessibility(TypeChecker &TC,
     assert(param->getInherited().size() == 1);
     checkTypeAccessibilityImpl(TC, param->getInherited().front(), accessScope,
                                owner->getDeclContext(),
-                               [&](const AccessScopeRef typeAccessScope,
+                               [&](const AccessScope *typeAccessScope,
                                    const TypeRepr *thisComplainRepr) {
       if (!minAccessScope ||
           typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1593,7 +1596,7 @@ static void checkGenericParamAccessibility(TypeChecker &TC,
   }
 
   for (auto &requirement : params->getRequirements()) {
-    auto callback = [&](const AccessScopeRef typeAccessScope,
+    auto callback = [&](const AccessScope *typeAccessScope,
                         const TypeRepr *thisComplainRepr) {
       if (!minAccessScope ||
           typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1693,7 +1696,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
 
         checkTypeAccessibility(TC, TypeLoc::withoutLoc(theVar->getType()),
                                theVar,
-                               [&](const AccessScopeRef typeAccessScope,
+                               [&](const AccessScope *typeAccessScope,
                                    const TypeRepr *complainRepr) {
           auto typeAccess =
               accessibilityFromScopeForDiagnostics(typeAccessScope);
@@ -1727,7 +1730,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
         return;
 
       checkTypeAccessibility(TC, TP->getTypeLoc(), anyVar,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *complainRepr) {
         auto typeAccess = accessibilityFromScopeForDiagnostics(typeAccessScope);
         bool isExplicit =
@@ -1749,7 +1752,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
     auto TAD = cast<TypeAliasDecl>(D);
 
     checkTypeAccessibility(TC, TAD->getUnderlyingTypeLoc(), TAD,
-                           [&](const AccessScopeRef typeAccessScope,
+                           [&](const AccessScope *typeAccessScope,
                                const TypeRepr *complainRepr) {
       auto typeAccess = accessibilityFromScopeForDiagnostics(typeAccessScope);
       bool isExplicit = TAD->getAttrs().hasAttribute<AccessibilityAttr>();
@@ -1770,14 +1773,14 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       AEK_DefaultDefinition = 0,
       AEK_Requirement
     } accessibilityErrorKind;
-    AccessScopeRef minAccessScope = nullptr;
+    const AccessScope *minAccessScope = nullptr;
     const TypeRepr *complainRepr = nullptr;
 
     std::for_each(assocType->getInherited().begin(),
                   assocType->getInherited().end(),
                   [&](TypeLoc requirement) {
       checkTypeAccessibility(TC, requirement, assocType,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *thisComplainRepr) {
         if (!minAccessScope ||
             typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1789,7 +1792,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       });
     });
     checkTypeAccessibility(TC, assocType->getDefaultDefinitionLoc(), assocType,
-                           [&](const AccessScopeRef typeAccessScope,
+                           [&](const AccessScope *typeAccessScope,
                                const TypeRepr *thisComplainRepr) {
       if (!minAccessScope ||
           typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1827,7 +1830,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       if (rawTypeLocIter == ED->getInherited().end())
         return;
       checkTypeAccessibility(TC, *rawTypeLocIter, ED,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *complainRepr) {
         auto typeAccess = accessibilityFromScopeForDiagnostics(typeAccessScope);
         bool isExplicit = ED->getAttrs().hasAttribute<AccessibilityAttr>();
@@ -1864,7 +1867,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       if (superclassLocIter == CD->getInherited().end())
         return;
       checkTypeAccessibility(TC, *superclassLocIter, CD,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *complainRepr) {
         auto typeAccess = accessibilityFromScopeForDiagnostics(typeAccessScope);
         bool isExplicit = CD->getAttrs().hasAttribute<AccessibilityAttr>();
@@ -1881,14 +1884,14 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
   case DeclKind::Protocol: {
     auto proto = cast<ProtocolDecl>(D);
 
-    AccessScopeRef minAccessScope = nullptr;
+    const AccessScope *minAccessScope = nullptr;
     const TypeRepr *complainRepr = nullptr;
 
     std::for_each(proto->getInherited().begin(),
                   proto->getInherited().end(),
                   [&](TypeLoc requirement) {
       checkTypeAccessibility(TC, requirement, proto,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *thisComplainRepr) {
         if (!minAccessScope ||
             typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1912,12 +1915,12 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
   case DeclKind::Subscript: {
     auto SD = cast<SubscriptDecl>(D);
 
-    AccessScopeRef minAccessScope = nullptr;
+    const AccessScope *minAccessScope = nullptr;
     const TypeRepr *complainRepr = nullptr;
     bool problemIsElement = false;
     for (auto &P : *SD->getIndices()) {
       checkTypeAccessibility(TC, P->getTypeLoc(), SD,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *thisComplainRepr) {
         if (!minAccessScope ||
             typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1929,7 +1932,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
     }
 
     checkTypeAccessibility(TC, SD->getElementTypeLoc(), SD,
-                           [&](const AccessScopeRef typeAccessScope,
+                           [&](const AccessScope *typeAccessScope,
                                const TypeRepr *thisComplainRepr) {
       if (!minAccessScope ||
           typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1972,12 +1975,12 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       FK_Initializer
     };
 
-    AccessScopeRef minAccessScope = nullptr;
+    const AccessScope *minAccessScope = nullptr;
     const TypeRepr *complainRepr = nullptr;
     for (auto *PL : fn->getParameterLists().slice(isTypeContext)) {
       for (auto &P : *PL) {
         checkTypeAccessibility(TC, P->getTypeLoc(), fn,
-                               [&](const AccessScopeRef typeAccessScope,
+                               [&](const AccessScope *typeAccessScope,
                                    const TypeRepr *thisComplainRepr) {
           if (!minAccessScope ||
               typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -1992,7 +1995,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
     bool problemIsResult = false;
     if (auto FD = dyn_cast<FuncDecl>(fn)) {
       checkTypeAccessibility(TC, FD->getBodyResultTypeLoc(), FD,
-                             [&](const AccessScopeRef typeAccessScope,
+                             [&](const AccessScope *typeAccessScope,
                                  const TypeRepr *thisComplainRepr) {
         if (!minAccessScope ||
             typeAccessScope->isChildScopeOf(&*minAccessScope) ||
@@ -2027,7 +2030,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
     if (!EED->hasArgumentType())
       return;
     checkTypeAccessibility(TC, EED->getArgumentTypeLoc(), EED,
-                           [&](const AccessScopeRef typeAccessScope,
+                           [&](const AccessScope *typeAccessScope,
                                const TypeRepr *complainRepr) {
       auto typeAccess = accessibilityFromScopeForDiagnostics(typeAccessScope);
       auto diag = TC.diagnose(EED, diag::enum_case_access,
@@ -6273,25 +6276,28 @@ public:
       TC.computeDefaultAccessibility(ED);
       if (auto *AA = ED->getAttrs().getAttribute<AccessibilityAttr>()) {
         auto accessibility = AA->getAccess();
-        auto desiredDeclContext = [&]() -> const DeclContext * {
-          switch (accessibility) {
-          case Accessibility::Private:
-            assert(ED->getDeclContext()->isModuleScopeContext() &&
-                   "non-top-level extensions make 'private' != 'fileprivate'");
-            SWIFT_FALLTHROUGH;
-          case Accessibility::FilePrivate:
-            return ED->getModuleScopeContext();
-          case Accessibility::Internal:
-            return ED->getModuleContext();
-          case Accessibility::Public:
-          case Accessibility::Open:
-            return nullptr;
-          }
-        }();
+        const DeclContext *desiredDeclContext = nullptr;
 
-        auto accessScope = std::make_shared<AccessScope>(
-          desiredDeclContext, accessibility == Accessibility::Private
-        );
+        switch (accessibility) {
+        case Accessibility::Private:
+          assert(ED->getDeclContext()->isModuleScopeContext() &&
+                 "non-top-level extensions make 'private' != 'fileprivate'");
+          SWIFT_FALLTHROUGH;
+        case Accessibility::FilePrivate:
+          desiredDeclContext = ED->getModuleScopeContext();
+          break;
+        case Accessibility::Internal:
+          desiredDeclContext = ED->getModuleContext();
+          break;
+        case Accessibility::Public:
+        case Accessibility::Open:
+          break;
+        }
+
+        AccessScopeRef accessScope = nullptr;
+        if (desiredDeclContext)
+          accessScope = std::make_shared<AccessScope>(desiredDeclContext, accessibility == Accessibility::Private);
+
         checkGenericParamAccessibility(TC, ED->getGenericParams(), ED,
                                        accessScope, AA->getAccess());
       }

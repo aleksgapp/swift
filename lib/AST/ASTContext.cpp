@@ -17,6 +17,7 @@
 #include "swift/AST/ASTContext.h"
 #include "ForeignRepresentationInfo.h"
 #include "swift/Strings.h"
+#include "swift/AST/AccessScope.h"
 #include "swift/AST/ArchetypeBuilder.h"
 #include "swift/AST/AST.h"
 #include "swift/AST/ConcreteDeclRef.h"
@@ -3688,6 +3689,16 @@ ExprHandle *ExprHandle::get(ASTContext &Context, Expr *E) {
 
 void TypeLoc::setInvalidType(ASTContext &C) {
   TAndValidBit.setPointerAndInt(ErrorType::get(C), true);
+}
+
+void *AccessScope::operator new(size_t Bytes, ASTContext &C,
+                                unsigned Alignment) {
+    return C.Allocate(Bytes, Alignment);
+}
+
+const AccessScope *AccessScope::get(const DeclContext *DC, bool isPrivate) {
+    if (!DC) return nullptr;
+    return new(DC->getASTContext()) AccessScope(DC, isPrivate);
 }
 
 namespace {

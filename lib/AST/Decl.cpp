@@ -1892,7 +1892,7 @@ Accessibility ValueDecl::getFormalAccessImpl(const DeclContext *useDC) const {
   return getFormalAccess();
 }
 
-const DeclContext *
+const AccessScope *
 ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   const DeclContext *result = getDeclContext();
   Accessibility access = getFormalAccess(useDC);
@@ -1900,11 +1900,11 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
 
   while (!result->isModuleScopeContext()) {
     if (result->isLocalContext())
-      return result;
+      return AccessScope::get(result);
 
     if (access == Accessibility::Private && !swift3PrivateChecked) {
       if (result->getASTContext().LangOpts.EnableSwift3Private)
-        return result;
+        return AccessScope::get(result);
       swift3PrivateChecked = true;
     }
 
@@ -1931,15 +1931,15 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   case Accessibility::Private:
   case Accessibility::FilePrivate:
     assert(result->isModuleScopeContext());
-    return result;
+    return AccessScope::get(result, access == Accessibility::Private);
   case Accessibility::Internal:
-    return result->getParentModule();
+    return AccessScope::get(result->getParentModule());
   case Accessibility::Public:
   case Accessibility::Open:
     return nullptr;
   }
 
-  return result;
+  return AccessScope::get(result);
 }
 
 

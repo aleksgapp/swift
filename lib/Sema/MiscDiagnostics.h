@@ -21,6 +21,7 @@
 #include "llvm/ADT/Optional.h"
 
 namespace swift {
+  class AccessScope;
   class AbstractFunctionDecl;
   class ApplyExpr;
   class AvailableAttr;
@@ -36,7 +37,7 @@ namespace swift {
 ///
 /// \sa ValueDecl::getFormalAccessScope
 Accessibility
-accessibilityFromScopeForDiagnostics(const DeclContext *accessScope);
+accessibilityFromScopeForDiagnostics(const AccessScope *accessScope);
 
 /// \brief Emit diagnostics for syntactic restrictions on a given expression.
 void performSyntacticExprDiagnostics(TypeChecker &TC, const Expr *E,

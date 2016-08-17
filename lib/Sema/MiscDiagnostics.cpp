@@ -3632,14 +3632,20 @@ void swift::performStmtDiagnostics(TypeChecker &TC, const Stmt *S) {
 //===----------------------------------------------------------------------===//
 
 
+/// Returns the access level associated with \p accessScope, for diagnostic
+/// purposes.
+///
+/// \sa ValueDecl::getFormalAccessScope
 Accessibility
-swift::accessibilityFromScopeForDiagnostics(const DeclContext *accessScope) {
+swift::accessibilityFromScopeForDiagnostics(const AccessScope *accessScope) {
   if (!accessScope)
     return Accessibility::Public;
-  if (isa<ModuleDecl>(accessScope))
+
+  const DeclContext *DC = accessScope->getDeclContext();
+  if (isa<ModuleDecl>(DC))
     return Accessibility::Internal;
-  if (accessScope->isModuleScopeContext() &&
-      accessScope->getASTContext().LangOpts.EnableSwift3Private) {
+  if (accessScope->isModule() &&
+      DC->getASTContext().LangOpts.EnableSwift3Private) {
     return Accessibility::FilePrivate;
   }
   return Accessibility::Private;

@@ -42,15 +42,10 @@ private:
                      unsigned Alignment = 8);
 public:
 
-  bool operator==(const AccessScope &RHS) const {
-    return Value == RHS.Value;
-  }
+  bool operator==(const AccessScope &RHS) const { return Value == RHS.Value; }
+  bool operator!=(const AccessScope &RHS) const { return !(*this == RHS); }
 
-  bool operator!=(const AccessScope *RHS) const { return !(this == RHS); }
-
-  const DeclContext *getDeclContext() const {
-    return Value.getPointer();
-  }
+  const DeclContext *getDeclContext() const { return Value.getPointer(); }
 
   /// \brief Determine whether the referenced expression has already been
   /// type-checked.
@@ -60,6 +55,14 @@ public:
 
   bool isChildScopeOf(const AccessScope *AS) const {
       return getDeclContext()->isChildContextOf(AS->getDeclContext());
+  }
+
+  static bool isEqual(const AccessScope *LHS, const AccessScope *RHS) {
+      if (!LHS && !RHS)
+          return true;
+      if (!LHS || !RHS)
+        return false;
+      return *LHS == *RHS;
   }
 
   static const AccessScope *get(const DeclContext *DC, bool isPrivate = false);

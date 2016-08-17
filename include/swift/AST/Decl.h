@@ -17,6 +17,7 @@
 #ifndef SWIFT_DECL_H
 #define SWIFT_DECL_H
 
+#include "swift/AST/AccessScope.h"
 #include "swift/AST/CaptureInfo.h"
 #include "swift/AST/ClangNode.h"
 #include "swift/AST/ConcreteDeclRef.h"
@@ -2213,7 +2214,7 @@ public:
   ///
   /// \sa getFormalAccess
   /// \sa isAccessibleFrom
-  const DeclContext *
+  const AccessScope *
   getFormalAccessScope(const DeclContext *useDC = nullptr) const;
 
   /// Returns the access level that actually controls how a declaration should

@@ -1901,18 +1901,17 @@ Accessibility ValueDecl::getFormalAccessImpl(const DeclContext *useDC) const {
   return getFormalAccess();
 }
 
-const DeclContext *
+const AccessScope
 ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   const DeclContext *result = getDeclContext();
   Accessibility access = getFormalAccess(useDC);
 
   while (!result->isModuleScopeContext()) {
     if (result->isLocalContext())
-      return result;
+      return AccessScope(result);
 
-    if (access == Accessibility::Private) {
-      return result;
-    }
+    if (access == Accessibility::Private)
+      return AccessScope(result);
 
     if (auto enclosingNominal = dyn_cast<NominalTypeDecl>(result)) {
       access = std::min(access, enclosingNominal->getFormalAccess(useDC));
@@ -1937,15 +1936,15 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   case Accessibility::Private:
   case Accessibility::FilePrivate:
     assert(result->isModuleScopeContext());
-    return result;
+    return AccessScope(result, access == Accessibility::Private);
   case Accessibility::Internal:
-    return result->getParentModule();
+    return AccessScope(result->getParentModule());
   case Accessibility::Public:
   case Accessibility::Open:
-    return nullptr;
+    return AccessScope();
   }
 
-  return result;
+  return AccessScope(result);
 }
 
 
@@ -4962,3 +4961,31 @@ void ClassDecl::setSuperclass(Type superclass) {
          && "superclass must be interface type");
   LazySemanticInfo.Superclass.setPointerAndInt(superclass, true);
 }
+
+Accessibility AccessScope::accessibilityForDiagnostics() const {
+  if (isPublic())
+    return Accessibility::Public;
+  if (isModuleDecl())
+    return Accessibility::Internal;
+  if (isModuleContext())
+    return Accessibility::FilePrivate;
+  return Accessibility::Private;
+}
+
+bool AccessScope::isModuleContext() const {
+  assert(Value.getPointer() && "scope is public");;
+  return getDeclContext()->isModuleContext();
+};
+
+bool AccessScope::isModuleDecl() const {
+  assert(Value.getPointer() && "scope is public");;
+  return isa<ModuleDecl>(getDeclContext());
+}
+
+bool AccessScope::isChildOf(const AccessScope AS) const {
+  return getDeclContext()->isChildContextOf(AS.getDeclContext());
+}
+
+const AccessScope AccessScope::INVALID = AccessScope(nullptr, false);
+
+

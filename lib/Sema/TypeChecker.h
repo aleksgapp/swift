@@ -35,6 +35,7 @@
 
 namespace swift {
 
+class AccessScope;
 class ArchetypeBuilder;
 class GenericTypeResolver;
 class NominalTypeDecl;
@@ -478,7 +479,7 @@ public:
   /// during type checking.
   llvm::SetVector<NominalTypeDecl *> ValidatedTypes;
 
-  using TypeAccessScopeCacheMap = llvm::DenseMap<Type, const DeclContext *>;
+  using TypeAccessScopeCacheMap = llvm::DenseMap<Type, AccessScope>;
 
   /// Caches the outermost scope where a particular type can be used, relative
   /// to a particular file.

@@ -1173,34 +1173,16 @@ class TypeAccessScopeChecker : private TypeWalker {
   using TypeAccessScopeCacheMap = TypeChecker::TypeAccessScopeCacheMap;
   TypeAccessScopeCacheMap &Cache;
   const SourceFile *File;
-  SmallVector<AccessScope, 8> RawScopeStack;
+  SmallVector<Optional<AccessScope>, 8> RawScopeStack;
 
   explicit TypeAccessScopeChecker(TypeAccessScopeCacheMap &cache,
                                   const SourceFile *file)
       : Cache(cache), File(file) {
     // Always have something on the stack.
-    RawScopeStack.push_back(AccessScope::INVALID);
+    RawScopeStack.push_back(None);
   }
 
   bool shouldVisitOriginalSubstitutedType() override { return true; }
-
-  static AccessScope intersectAccess(const AccessScope first,
-                                     const AccessScope second) {
-    if (first.isInvalid() || second.isInvalid())
-      return AccessScope::INVALID;
-    if (first.isPublic())
-      return second;
-    if (second.isPublic())
-      return first;
-
-    if (first == second)
-        return first;
-    if (first.isChildOf(second))
-      return first;
-    if (second.isChildOf(first))
-      return second;
-    return AccessScope::INVALID;
-  }
 
   Action walkToTypePre(Type ty) override {
     // Assume failure until we post-visit this node.
@@ -1208,8 +1190,9 @@ class TypeAccessScopeChecker : private TypeWalker {
     // Types.
     auto cached = Cache.find(ty);
     if (cached != Cache.end()) {
-      RawScopeStack.back() = intersectAccess(RawScopeStack.back(),
-                                             cached->second);
+      auto last = &RawScopeStack.back();
+      if (last->hasValue())
+        *last = last->getValue().intersectWith(cached->second);
       return Action::SkipChildren;
     }
 
@@ -1227,9 +1210,13 @@ class TypeAccessScopeChecker : private TypeWalker {
 
   Action walkToTypePost(Type ty) override {
     auto last = RawScopeStack.pop_back_val();
-    if (!last.isInvalid())
-      Cache[ty] = last;
-    RawScopeStack.back() = intersectAccess(RawScopeStack.back(), last);
+    if (last.hasValue()) {
+      Cache[ty] = *last;
+      auto prev = &RawScopeStack.back();
+      if (prev->hasValue())
+        *prev = prev->getValue().intersectWith(*last);
+    }
+
     return Action::Continue;
   }
 
@@ -1281,7 +1268,7 @@ void TypeChecker::computeDefaultAccessibility(ExtensionDecl *ED) {
 
       if (accessScope->isPublic())
         return Accessibility::Public;
-      if (accessScope->isModuleDecl())
+      if (isa<ModuleDecl>(accessScope->getDeclContext()))
         return Accessibility::Internal;
       // Because extensions are always at top-level, they should never
       // reference declarations not at the top level. (And any such references
@@ -1483,7 +1470,7 @@ static void checkTypeAccessibilityImpl(
   // Don't spend time checking private access; this is always valid by the time
   // we get to this point. This includes local declarations.
   if (!contextAccessScope.isPublic() &&
-      !contextAccessScope.isModuleDecl())
+      !isa<ModuleDecl>(contextAccessScope.getDeclContext()))
     return;
 
   auto typeAccessScope =

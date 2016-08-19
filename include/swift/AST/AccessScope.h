@@ -33,30 +33,45 @@ public:
   AccessScope(const DeclContext *DC = nullptr, bool isPrivate = false)
     : Value(DC, isPrivate) {}
 
-  static const AccessScope INVALID;
+  const DeclContext *getDeclContext() const { return Value.getPointer(); }
 
-  bool operator==(const AccessScope RHS) const { return Value == RHS.Value; }
+  bool operator==(const AccessScope RHS) const {
+      return Value.getPointer() == RHS.Value.getPointer();
+  }
   bool operator!=(const AccessScope RHS) const { return !(*this == RHS); }
 
   bool isPublic() const { return !Value.getPointer(); }
-
-  const DeclContext *getDeclContext() const { return Value.getPointer(); }
-
-  bool isInvalid() const { return *this == INVALID; }
-
-  /// \brief Determine whether the referenced expression has already been
-  /// type-checked.
   bool isPrivate() const { return Value.getInt(); }
 
-  bool isModuleContext() const;
-  bool isModuleDecl() const;
-  bool isChildOf(const AccessScope AS) const;
+  bool isModuleScopeContext() const {
+    return getDeclContext()->isModuleScopeContext();
+  }
 
-  /// Returns the access level associated with \p accessScope, for diagnostic
-  /// purposes.
+  bool isChildOf(const AccessScope AS) const {
+    return getDeclContext()->isChildContextOf(AS.getDeclContext());
+  }
+
+  /// Returns the associated access level for diagnostic purposes.
   ///
   /// \sa ValueDecl::getFormalAccessScope
   Accessibility accessibilityForDiagnostics() const;
+
+  const AccessScope intersectWith(const AccessScope accessScope) const {
+    if (isPublic())
+      return accessScope;
+    if (accessScope.isPublic())
+      return *this;
+
+    if (*this == accessScope)
+        return *this;
+    if (isChildOf(accessScope))
+      return *this;
+    if (accessScope.isChildOf(*this))
+      return accessScope;
+
+    return *this;
+  }
+
 };
 
 } // end namespace swift

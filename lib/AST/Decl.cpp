@@ -4962,30 +4962,3 @@ void ClassDecl::setSuperclass(Type superclass) {
   LazySemanticInfo.Superclass.setPointerAndInt(superclass, true);
 }
 
-Accessibility AccessScope::accessibilityForDiagnostics() const {
-  if (isPublic())
-    return Accessibility::Public;
-  if (isModuleDecl())
-    return Accessibility::Internal;
-  if (isModuleContext())
-    return Accessibility::FilePrivate;
-  return Accessibility::Private;
-}
-
-bool AccessScope::isModuleContext() const {
-  assert(Value.getPointer() && "scope is public");;
-  return getDeclContext()->isModuleContext();
-};
-
-bool AccessScope::isModuleDecl() const {
-  assert(Value.getPointer() && "scope is public");;
-  return isa<ModuleDecl>(getDeclContext());
-}
-
-bool AccessScope::isChildOf(const AccessScope AS) const {
-  return getDeclContext()->isChildContextOf(AS.getDeclContext());
-}
-
-const AccessScope AccessScope::INVALID = AccessScope(nullptr, false);
-
-

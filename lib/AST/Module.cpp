@@ -426,7 +426,8 @@ void Module::lookupMember(SmallVectorImpl<ValueDecl*> &results,
       return VD->getModuleContext() == this;
     });
 
-    if (nominal->getFormalAccessScope().isModuleContext())
+    auto accessScope = nominal->getFormalAccessScope();
+    if (!accessScope.isPublic() && !accessScope.isModuleScopeContext())
       alreadyInPrivateContext = true;
 
     break;

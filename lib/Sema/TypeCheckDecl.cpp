@@ -1184,32 +1184,13 @@ class TypeAccessScopeChecker : private TypeWalker {
 
   bool shouldVisitOriginalSubstitutedType() override { return true; }
 
-  static AccessScope intersectAccess(const AccessScope first,
-                                     const AccessScope second) {
-    if (first.isInvalid() || second.isInvalid())
-      return AccessScope::INVALID;
-    if (first.isPublic())
-      return second;
-    if (second.isPublic())
-      return first;
-
-    if (first == second)
-        return first;
-    if (first.isChildOf(second))
-      return first;
-    if (second.isChildOf(first))
-      return second;
-    return AccessScope::INVALID;
-  }
-
   Action walkToTypePre(Type ty) override {
     // Assume failure until we post-visit this node.
     // This will be correct as long as we don't ever have self-referential
     // Types.
     auto cached = Cache.find(ty);
     if (cached != Cache.end()) {
-      RawScopeStack.back() = intersectAccess(RawScopeStack.back(),
-                                             cached->second);
+      RawScopeStack.back() = RawScopeStack.back().intersectWith(cached->second);
       return Action::SkipChildren;
     }
 
@@ -1229,7 +1210,7 @@ class TypeAccessScopeChecker : private TypeWalker {
     auto last = RawScopeStack.pop_back_val();
     if (!last.isInvalid())
       Cache[ty] = last;
-    RawScopeStack.back() = intersectAccess(RawScopeStack.back(), last);
+    RawScopeStack.back() = RawScopeStack.back().intersectWith(last);
     return Action::Continue;
   }
 

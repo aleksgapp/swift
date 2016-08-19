@@ -1273,33 +1273,26 @@ checkWitnessAccessibility(AccessScope &requiredAccessScope,
                           bool *isSetter) {
   *isSetter = false;
 
-  AccessScope protoAccessScope = Proto->getFormalAccessScope(DC);
+  auto protoAccessScope = Proto->getFormalAccessScope(DC);
 
-  // FIXME: This is the same operation as TypeCheckDecl.cpp's
-  // TypeAccessScopeChecker::intersectAccess.
-  if (requiredAccessScope.isPublic()) {
-    requiredAccessScope = protoAccessScope;
-  } else if (!protoAccessScope.isPublic()) {
-    if (protoAccessScope.isChildOf(requiredAccessScope)) {
-      requiredAccessScope = protoAccessScope;
-    } else {
-      assert(requiredAccessScope == protoAccessScope ||
-             requiredAccessScope.isChildOf(protoAccessScope));
-    }
-  }
+  if (!requiredAccessScope.isPublic() && !protoAccessScope.isPublic() &&
+      !protoAccessScope.isChildOf(requiredAccessScope))
+    assert(requiredAccessScope == protoAccessScope ||
+           requiredAccessScope.isChildOf(protoAccessScope));
 
-  if (requiredAccessScope.isPublic())
-    return false;
+  auto accessScope = requiredAccessScope.intersectWith(protoAccessScope);
+  if (!accessScope.isInvalid())
+    requiredAccessScope = accessScope;
 
-  auto DC = requiredAccessScope.getDeclContext();
-  if (!witness->isAccessibleFrom(DC))
+  auto requiredScopeDeclContext = requiredAccessScope.getDeclContext();
+  if (!witness->isAccessibleFrom(requiredScopeDeclContext))
     return true;
 
   if (requirement->isSettable(DC)) {
     *isSetter = true;
 
     auto ASD = cast<AbstractStorageDecl>(witness);
-    if (!ASD->isSetterAccessibleFrom(DC))
+    if (!ASD->isSetterAccessibleFrom(requiredScopeDeclContext))
       return true;
   }
 
@@ -1970,7 +1963,7 @@ void ConformanceChecker::recordTypeWitness(AssociatedTypeDecl *assocType,
             requiredAccessScope.accessibilityForDiagnostics();
         auto proto = conformance->getProtocol();
         bool protoForcesAccess =
-            (requiredAccessScope == proto->getFormalAccessScope());
+            (requiredAccessScope == proto->getFormalAccessScope(DC));
         auto diagKind = protoForcesAccess
                           ? diag::type_witness_not_accessible_proto
                           : diag::type_witness_not_accessible_type;
@@ -2230,7 +2223,7 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
 
         auto proto = conformance->getProtocol();
         bool protoForcesAccess =
-            check.RequiredAccessScope == proto->getFormalAccessScope();
+            (check.RequiredAccessScope == proto->getFormalAccessScope(DC));
         auto diagKind = protoForcesAccess
                           ? diag::witness_not_accessible_proto
                           : diag::witness_not_accessible_type;

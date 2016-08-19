@@ -4963,19 +4963,17 @@ void ClassDecl::setSuperclass(Type superclass) {
 Accessibility AccessScope::accessibilityForDiagnostics() const {
   if (isPublic())
     return Accessibility::Public;
-
   if (isModuleDecl())
     return Accessibility::Internal;
-  if (isModuleContext() &&
+  if (isModuleScopeContext() &&
       getDeclContext()->getASTContext().LangOpts.EnableSwift3Private)
     return Accessibility::FilePrivate;
 
   return Accessibility::Private;
 }
 
-bool AccessScope::isModuleContext() const {
-  assert(Value.getPointer() && "scope is public");;
-  return getDeclContext()->isModuleContext();
+bool AccessScope::isModuleScopeContext() const {
+  return !isPublic() && getDeclContext()->isModuleScopeContext();
 };
 
 bool AccessScope::isModuleDecl() const {
@@ -4989,4 +4987,20 @@ bool AccessScope::isChildOf(const AccessScope AS) const {
 
 const AccessScope AccessScope::INVALID = AccessScope(nullptr, false);
 
+const AccessScope AccessScope::intersectWith(
+    const AccessScope accessScope) const {
+  if (isInvalid() || accessScope.isInvalid())
+    return INVALID;
+  if (isPublic())
+    return accessScope;
+  if (accessScope.isPublic())
+    return *this;
 
+  if (*this == accessScope)
+      return *this;
+  if (isChildOf(accessScope))
+    return *this;
+  if (accessScope.isChildOf(*this))
+    return accessScope;
+  return INVALID;
+}

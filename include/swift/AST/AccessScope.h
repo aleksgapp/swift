@@ -34,21 +34,18 @@ public:
     : Value(DC, isPrivate) {}
 
   static const AccessScope INVALID;
+  const DeclContext *getDeclContext() const { return Value.getPointer(); }
 
-  bool operator==(const AccessScope RHS) const { return Value == RHS.Value; }
+  bool operator==(const AccessScope RHS) const {
+      return Value.getPointer() == RHS.Value.getPointer();
+  }
   bool operator!=(const AccessScope RHS) const { return !(*this == RHS); }
 
   bool isPublic() const { return !Value.getPointer(); }
-
-  const DeclContext *getDeclContext() const { return Value.getPointer(); }
-
-  bool isInvalid() const { return *this == INVALID; }
-
-  /// \brief Determine whether the referenced expression has already been
-  /// type-checked.
   bool isPrivate() const { return Value.getInt(); }
+  bool isInvalid() const { return isPublic() && isPrivate(); }
 
-  bool isModuleContext() const;
+  bool isModuleScopeContext() const;
   bool isModuleDecl() const;
   bool isChildOf(const AccessScope AS) const;
 
@@ -57,6 +54,8 @@ public:
   ///
   /// \sa ValueDecl::getFormalAccessScope
   Accessibility accessibilityForDiagnostics() const;
+
+  const AccessScope intersectWith(const AccessScope scope) const;
 };
 
 } // end namespace swift

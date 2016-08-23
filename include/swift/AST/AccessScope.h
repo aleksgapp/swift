@@ -45,9 +45,15 @@ public:
   bool isPrivate() const { return Value.getInt(); }
   bool isInvalid() const { return isPublic() && isPrivate(); }
 
-  bool isModuleScopeContext() const;
-  bool isModuleDecl() const;
-  bool isChildOf(const AccessScope AS) const;
+  bool isModuleScopeContext() const {
+    assert(!isPublic());
+    return getDeclContext()->isModuleScopeContext();
+  }
+
+  bool isChildOf(const AccessScope AS) const {
+    assert(!isPublic() && !AS.isPublic());
+    return getDeclContext()->isChildContextOf(AS.getDeclContext());
+  }
 
   /// Returns the access level associated with \p accessScope, for diagnostic
   /// purposes.
@@ -55,7 +61,23 @@ public:
   /// \sa ValueDecl::getFormalAccessScope
   Accessibility accessibilityForDiagnostics() const;
 
-  const AccessScope intersectWith(const AccessScope scope) const;
+  const AccessScope intersectWith(const AccessScope accessScope) const {
+    if (isInvalid() || accessScope.isInvalid())
+      return INVALID;
+    if (isPublic())
+      return accessScope;
+    if (accessScope.isPublic())
+      return *this;
+
+    if (*this == accessScope)
+        return *this;
+    if (isChildOf(accessScope))
+      return *this;
+    if (accessScope.isChildOf(*this))
+      return accessScope;
+    return INVALID;
+  }
+
 };
 
 } // end namespace swift

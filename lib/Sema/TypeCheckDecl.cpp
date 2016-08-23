@@ -1262,7 +1262,7 @@ void TypeChecker::computeDefaultAccessibility(ExtensionDecl *ED) {
 
       if (accessScope->isPublic())
         return Accessibility::Public;
-      if (accessScope->isModuleDecl())
+      if (isa<ModuleDecl>(accessScope->getDeclContext()))
         return Accessibility::Internal;
       // Because extensions are always at top-level, they should never
       // reference declarations not at the top level. (And any such references
@@ -1468,7 +1468,7 @@ static void checkTypeAccessibilityImpl(
   // Don't spend time checking private access; this is always valid by the time
   // we get to this point. This includes local declarations.
   if (!contextAccessScope.isPublic() &&
-      !contextAccessScope.isModuleDecl())
+      !isa<ModuleDecl>(contextAccessScope.getDeclContext()))
     return;
 
   auto typeAccessScope =

@@ -1173,13 +1173,13 @@ class TypeAccessScopeChecker : private TypeWalker {
   using TypeAccessScopeCacheMap = TypeChecker::TypeAccessScopeCacheMap;
   TypeAccessScopeCacheMap &Cache;
   const SourceFile *File;
-  SmallVector<AccessScope, 8> RawScopeStack;
+  SmallVector<Optional<AccessScope>, 8> RawScopeStack;
 
   explicit TypeAccessScopeChecker(TypeAccessScopeCacheMap &cache,
                                   const SourceFile *file)
       : Cache(cache), File(file) {
     // Always have something on the stack.
-    RawScopeStack.push_back(AccessScope::INVALID);
+    RawScopeStack.push_back(None);
   }
 
   bool shouldVisitOriginalSubstitutedType() override { return true; }
@@ -1190,7 +1190,9 @@ class TypeAccessScopeChecker : private TypeWalker {
     // Types.
     auto cached = Cache.find(ty);
     if (cached != Cache.end()) {
-      RawScopeStack.back() = RawScopeStack.back().intersectWith(cached->second);
+      if (RawScopeStack.back().hasValue())
+        RawScopeStack.back() =
+          RawScopeStack.back()->intersectWith(cached->second);
       return Action::SkipChildren;
     }
 
@@ -1208,9 +1210,12 @@ class TypeAccessScopeChecker : private TypeWalker {
 
   Action walkToTypePost(Type ty) override {
     auto last = RawScopeStack.pop_back_val();
-    if (!last.isInvalid())
-      Cache[ty] = last;
-    RawScopeStack.back() = RawScopeStack.back().intersectWith(last);
+    if (last.hasValue()) {
+      Cache[ty] = *last;
+      if (RawScopeStack.back().hasValue())
+        RawScopeStack.back() = RawScopeStack.back()->intersectWith(*last);
+    }
+
     return Action::Continue;
   }
 

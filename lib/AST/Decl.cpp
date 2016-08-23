@@ -4960,17 +4960,3 @@ void ClassDecl::setSuperclass(Type superclass) {
   LazySemanticInfo.Superclass.setPointerAndInt(superclass, true);
 }
 
-Accessibility AccessScope::accessibilityForDiagnostics() const {
-  if (isPublic())
-    return Accessibility::Public;
-  if (isa<ModuleDecl>(getDeclContext()))
-    return Accessibility::Internal;
-  if (isModuleScopeContext() &&
-      getDeclContext()->getASTContext().LangOpts.EnableSwift3Private)
-    return Accessibility::FilePrivate;
-
-  return Accessibility::Private;
-}
-
-const AccessScope AccessScope::INVALID = AccessScope(nullptr, true);
-

@@ -33,7 +33,6 @@ public:
   AccessScope(const DeclContext *DC = nullptr, bool isPrivate = false)
     : Value(DC, isPrivate) {}
 
-  static const AccessScope INVALID;
   const DeclContext *getDeclContext() const { return Value.getPointer(); }
 
   bool operator==(const AccessScope RHS) const {
@@ -43,27 +42,21 @@ public:
 
   bool isPublic() const { return !Value.getPointer(); }
   bool isPrivate() const { return Value.getInt(); }
-  bool isInvalid() const { return isPublic() && isPrivate(); }
 
   bool isModuleScopeContext() const {
-    assert(!isPublic());
     return getDeclContext()->isModuleScopeContext();
   }
 
   bool isChildOf(const AccessScope AS) const {
-    assert(!isPublic() && !AS.isPublic());
     return getDeclContext()->isChildContextOf(AS.getDeclContext());
   }
 
-  /// Returns the access level associated with \p accessScope, for diagnostic
-  /// purposes.
+  /// Returns the associated access level for diagnostic purposes.
   ///
   /// \sa ValueDecl::getFormalAccessScope
   Accessibility accessibilityForDiagnostics() const;
 
   const AccessScope intersectWith(const AccessScope accessScope) const {
-    if (isInvalid() || accessScope.isInvalid())
-      return INVALID;
     if (isPublic())
       return accessScope;
     if (accessScope.isPublic())
@@ -75,7 +68,8 @@ public:
       return *this;
     if (accessScope.isChildOf(*this))
       return accessScope;
-    return INVALID;
+
+    return *this;
   }
 
 };

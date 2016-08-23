@@ -1273,16 +1273,8 @@ checkWitnessAccessibility(AccessScope &requiredAccessScope,
                           bool *isSetter) {
   *isSetter = false;
 
-  auto protoAccessScope = Proto->getFormalAccessScope(DC);
-
-  if (!requiredAccessScope.isPublic() && !protoAccessScope.isPublic() &&
-      !protoAccessScope.isChildOf(requiredAccessScope))
-    assert(requiredAccessScope == protoAccessScope ||
-           requiredAccessScope.isChildOf(protoAccessScope));
-
-  auto accessScope = requiredAccessScope.intersectWith(protoAccessScope);
-  if (!accessScope.isInvalid())
-    requiredAccessScope = accessScope;
+  requiredAccessScope =
+    requiredAccessScope.intersectWith(Proto->getFormalAccessScope(DC));
 
   auto requiredScopeDeclContext = requiredAccessScope.getDeclContext();
   if (!witness->isAccessibleFrom(requiredScopeDeclContext))

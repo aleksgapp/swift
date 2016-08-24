@@ -3651,7 +3651,7 @@ namespace {
         switch (E->getSelectorKind()) {
         case ObjCSelectorExpr::Method: {
           bool isSettable = var->isSettable(cs.DC) &&
-            var->isSetterAccessibleFrom(cs.DC);
+            var->isSetterAccessibleFrom(var->getFormalAccessScope(cs.DC));
           auto primaryDiag =
             tc.diagnose(E->getLoc(), diag::expr_selector_expected_method,
                         isSettable, var->getFullName());
@@ -3704,7 +3704,7 @@ namespace {
           }
 
           // Make sure the setter is accessible.
-          if (!var->isSetterAccessibleFrom(cs.DC)) {
+          if (!var->isSetterAccessibleFrom(var->getFormalAccessScope(cs.DC))) {
             tc.diagnose(E->getLoc(),
                         diag::expr_selector_property_setter_inaccessible,
                         var->getDescriptiveKind(), var->getFullName());
@@ -5726,7 +5726,7 @@ static Type adjustSelfTypeForMember(Type baseTy, ValueDecl *member,
   if (auto *SD = dyn_cast<AbstractStorageDecl>(member)) {
     bool isSettableFromHere = SD->isSettable(UseDC)
       && (!UseDC->getASTContext().LangOpts.EnableAccessControl
-          || SD->isSetterAccessibleFrom(UseDC));
+          || SD->isSetterAccessibleFrom(SD->getFormalAccessScope(UseDC)));
 
     // If neither the property's getter nor its setter are mutating, the base
     // can be an rvalue.

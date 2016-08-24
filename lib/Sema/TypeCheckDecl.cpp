@@ -922,7 +922,7 @@ static void checkRedeclaration(TypeChecker &tc, ValueDecl *current) {
     // shadows a non-private one, but only in the file where the shadowing
     // happens. We will warn on conflicting non-private declarations in both
     // files.
-    if (!other->isAccessibleFrom(currentDC))
+    if (!other->isAccessibleFrom(other->getFormalAccessScope(currentDC)))
       continue;
 
     // If there is a conflict, complain.
@@ -5544,15 +5544,17 @@ public:
 
         if (!shouldDiagnose && matchDecl->isSettable(classDecl)) {
           auto matchASD = cast<AbstractStorageDecl>(matchDecl);
-          if (matchASD->isSetterAccessibleFrom(classDecl)) {
+          auto matchASDAccessScope = matchASD->getFormalAccessScope(classDecl);
+          if (matchASD->isSetterAccessibleFrom(matchASDAccessScope)) {
             auto ASD = cast<AbstractStorageDecl>(decl);
             const DeclContext *accessDC = nullptr;
             if (requiredAccess == Accessibility::Internal)
               accessDC = classDecl->getParentModule();
             else if (requiredAccess == Accessibility::FilePrivate)
               accessDC = classDecl->getDeclContext();
+            auto ASDAccessScope = ASD->getFormalAccessScope(accessDC);
             shouldDiagnoseSetter = ASD->isSettable(accessDC) &&
-                                   !ASD->isSetterAccessibleFrom(accessDC);
+                                   !ASD->isSetterAccessibleFrom(ASDAccessScope);
           }
         }
       }
@@ -5954,8 +5956,9 @@ public:
       // have nothing to observe!
       bool baseIsSettable = baseASD->isSettable(baseASD->getDeclContext());
       if (baseIsSettable && TC.Context.LangOpts.EnableAccessControl) {
-        baseIsSettable =
-           baseASD->isSetterAccessibleFrom(overrideASD->getDeclContext());
+        auto useDC = overrideASD->getDeclContext();
+        auto baseASDAccessScope = baseASD->getFormalAccessScope(useDC);
+        baseIsSettable = baseASD->isSetterAccessibleFrom(baseASDAccessScope);
       }
       if (overrideASD->hasObservers() && !baseIsSettable) {
         TC.diagnose(overrideASD, diag::observing_readonly_property,
@@ -6070,9 +6073,11 @@ public:
 
         // For setter accessors, we need the base's setter to be
         // accessible from the overriding context, or it's not an override.
+        auto useDC = overridingASD->getDeclContext();
+        auto baseASDAccessScope = baseASD->getFormalAccessScope(useDC);
         if ((kind == AccessorKind::IsSetter ||
              kind == AccessorKind::IsMaterializeForSet) &&
-            !baseASD->isSetterAccessibleFrom(overridingASD->getDeclContext()))
+            !baseASD->isSetterAccessibleFrom(baseASDAccessScope))
           return;
 
         // FIXME: Egregious hack to set an 'override' attribute.
@@ -7950,7 +7955,8 @@ void TypeChecker::addImplicitConstructors(NominalTypeDecl *decl) {
 
       // If the superclass initializer is not accessible from the derived
       // class, we cannot chain to 'super.init' either -- create a stub.
-      if (!superclassCtor->isAccessibleFrom(classDecl)) {
+      auto superCtorAccessScope=superclassCtor->getFormalAccessScope(classDecl);
+      if (!superclassCtor->isAccessibleFrom(superCtorAccessScope)) {
         assert(!superclassCtor->isRequired() &&
                "required initializer less visible than the class?");
         kind = DesignatedInitKind::Stub;

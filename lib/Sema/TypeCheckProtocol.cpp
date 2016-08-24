@@ -1276,15 +1276,14 @@ checkWitnessAccessibility(AccessScope &requiredAccessScope,
   requiredAccessScope =
     requiredAccessScope.intersectWith(Proto->getFormalAccessScope(DC));
 
-  auto requiredScopeDeclContext = requiredAccessScope.getDeclContext();
-  if (!witness->isAccessibleFrom(requiredScopeDeclContext))
+  if (!witness->isAccessibleFrom(requiredAccessScope))
     return true;
 
   if (requirement->isSettable(DC)) {
     *isSetter = true;
 
     auto ASD = cast<AbstractStorageDecl>(witness);
-    if (!ASD->isSetterAccessibleFrom(requiredScopeDeclContext))
+    if (!ASD->isSetterAccessibleFrom(requiredAccessScope))
       return true;
   }
 

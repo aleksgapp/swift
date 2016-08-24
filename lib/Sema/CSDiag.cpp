@@ -526,7 +526,7 @@ resolveImmutableBase(Expr *expr, ConstraintSystem &CS) {
     // If it isn't settable, return it.
     if (member) {
       if (!member->isSettable() ||
-          !member->isSetterAccessibleFrom(CS.DC))
+          !member->isSetterAccessibleFrom(member->getFormalAccessScope(CS.DC)))
         return { expr, member };
     }
 
@@ -546,9 +546,10 @@ resolveImmutableBase(Expr *expr, ConstraintSystem &CS) {
       
       // If the member isn't a vardecl (e.g. its a funcdecl), or it isn't
       // settable, then it is the problem: return it.
+      auto memberVDAccessScope = memberVD->getFormalAccessScope(CS.DC);
       if (!memberVD ||
           !member->isSettable(nullptr) ||
-          !memberVD->isSetterAccessibleFrom(CS.DC))
+          !memberVD->isSetterAccessibleFrom(memberVDAccessScope))
         return { expr, member };
     }
 
@@ -561,7 +562,7 @@ resolveImmutableBase(Expr *expr, ConstraintSystem &CS) {
     // If the member isn't settable, then it is the problem: return it.
     if (auto member = dyn_cast<AbstractStorageDecl>(MRE->getMember().getDecl()))
       if (!member->isSettable(nullptr) ||
-          !member->isSetterAccessibleFrom(CS.DC))
+          !member->isSetterAccessibleFrom(member->getFormalAccessScope(CS.DC)))
         return { expr, member };
 
     // If we weren't able to resolve a member or if it is mutable, then the
@@ -618,7 +619,7 @@ static void diagnoseSubElementFailure(Expr *destExpr,
       message += " is a 'let' constant";
     else if (!VD->isSettable(CS.DC))
       message += " is a get-only property";
-    else if (!VD->isSetterAccessibleFrom(CS.DC))
+    else if (!VD->isSetterAccessibleFrom(VD->getFormalAccessScope(CS.DC)))
       message += " setter is inaccessible";
     else {
       message += " is immutable";
@@ -637,7 +638,7 @@ static void diagnoseSubElementFailure(Expr *destExpr,
     StringRef message;
     if (!SD->isSettable())
       message = "subscript is get-only";
-    else if (!SD->isSetterAccessibleFrom(CS.DC))
+    else if (!SD->isSetterAccessibleFrom(SD->getFormalAccessScope(CS.DC)))
       message = "subscript setter is inaccessible";
     else
       message = "subscript is immutable";
@@ -1029,7 +1030,7 @@ void CalleeCandidateInfo::filterList(ClosenessPredicate predicate) {
       // Likewise, if the candidate is inaccessible from the scope it is being
       // accessed from, mark it as inaccessible or a general mismatch.
       if (VD->hasAccessibility() &&
-          !VD->isAccessibleFrom(CS->DC)) {
+          !VD->isAccessibleFrom(VD->getFormalAccessScope(CS->DC))) {
         // If this was an exact match, downgrade it to inaccessible, so that
         // accessible decls that are also an exact match will take precedence.
         // Otherwise consider it to be a general mismatch so we only list it in

@@ -178,7 +178,8 @@ static void lookupInModule(Module *module, Module::AccessPathTy accessPath,
       }
       if (!VD->hasAccessibility())
         return false;
-      return !VD->isAccessibleFrom(moduleScopeContext);
+      auto accessScope = VD->getFormalAccessScope(moduleScopeContext);
+      return !VD->isAccessibleFrom(accessScope);
     });
     localDecls.erase(newEndIter, localDecls.end());
 

@@ -2220,7 +2220,7 @@ public:
   /// A public declaration is accessible everywhere.
   ///
   /// If \p DC is null, returns true only if this declaration is public.
-  bool isAccessibleFrom(const DeclContext *DC) const;
+  bool isAccessibleFrom(const AccessScope AS) const;
 
   /// Retrieve the "interface" type of this value, which is the type used when
   /// the declaration is viewed from the outside. For a generic function,
@@ -4161,7 +4161,7 @@ public:
   /// context.
   ///
   /// If \p DC is null, returns true only if the setter is public.
-  bool isSetterAccessibleFrom(const DeclContext *DC) const;
+  bool isSetterAccessibleFrom(const AccessScope AS) const;
 
   /// Determine how this storage declaration should actually be accessed.
   AccessStrategy getAccessStrategy(AccessSemantics semantics,

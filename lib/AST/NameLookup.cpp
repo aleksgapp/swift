@@ -38,7 +38,7 @@ void AccessFilteringDeclConsumer::foundDecl(ValueDecl *D,
       TypeResolver->resolveAccessibility(D);
     if (D->isInvalid() && !D->hasAccessibility())
       return;
-    if (!D->isAccessibleFrom(DC))
+    if (!D->isAccessibleFrom(D->getFormalAccessScope(DC)))
       return;
   }
   ChainedConsumer.foundDecl(D, reason);
@@ -1030,13 +1030,15 @@ void ClassDecl::recordObjCMethod(AbstractFunctionDecl *method) {
   vec.push_back(method);
 }
 
-static bool checkAccessibility(const DeclContext *useDC,
+static bool checkAccessibility(const AccessScope AS,
                                const DeclContext *sourceDC,
                                Accessibility access) {
-  if (!useDC)
+  if (AS.isPublic())
     return access >= Accessibility::Public;
 
   assert(sourceDC && "ValueDecl being accessed must have a valid DeclContext");
+
+  auto useDC = AS.getDeclContext();
   switch (access) {
   case Accessibility::Private:
     if (sourceDC->getASTContext().LangOpts.EnableSwift3Private)
@@ -1061,20 +1063,20 @@ static bool checkAccessibility(const DeclContext *useDC,
   llvm_unreachable("bad Accessibility");
 }
 
-bool ValueDecl::isAccessibleFrom(const DeclContext *DC) const {
-  return checkAccessibility(DC, getDeclContext(), getFormalAccess());
+bool ValueDecl::isAccessibleFrom(const AccessScope AS) const {
+  return checkAccessibility(AS, getDeclContext(), getFormalAccess());
 }
 
-bool AbstractStorageDecl::isSetterAccessibleFrom(const DeclContext *DC) const {
-  assert(isSettable(DC));
+bool AbstractStorageDecl::isSetterAccessibleFrom(const AccessScope AS) const {
+  assert(isSettable(AS.getDeclContext()));
 
   // If a stored property does not have a setter, it is still settable from the
   // designated initializer constructor. In this case, don't check setter
   // accessibility, it is not set.
   if (hasStorage() && !isSettable(nullptr))
     return true;
-  
-  return checkAccessibility(DC, getDeclContext(), getSetterAccessibility());
+
+  return checkAccessibility(AS, getDeclContext(), getSetterAccessibility());
 }
 
 bool DeclContext::lookupQualified(Type type,
@@ -1262,7 +1264,7 @@ bool DeclContext::lookupQualified(Type type,
     // Check access.
     if (!(options & NL_IgnoreAccessibility))
       if (auto VD = dyn_cast<ValueDecl>(decl))
-        return VD->isAccessibleFrom(this);
+        return VD->isAccessibleFrom(VD->getFormalAccessScope(this));
 
     return true;
   };

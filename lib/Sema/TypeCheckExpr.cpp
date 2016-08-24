@@ -552,7 +552,7 @@ static bool doesStorageProduceLValue(TypeChecker &TC,
     return false;
   
   if (TC.Context.LangOpts.EnableAccessControl &&
-      !storage->isSetterAccessibleFrom(useDC))
+      !storage->isSetterAccessibleFrom(storage->getFormalAccessScope(useDC)))
     return false;
 
   // If there is no base, or if the base isn't being used, it is settable.

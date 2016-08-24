@@ -2079,7 +2079,8 @@ public:
   void addVarDeclRef(const VarDecl *VD, DeclVisibilityKind Reason) {
     if (!VD->hasName() ||
         !VD->isUserAccessible() ||
-        (VD->hasAccessibility() && !VD->isAccessibleFrom(CurrDeclContext)) ||
+        (VD->hasAccessibility() &&
+          !VD->isAccessibleFrom(VD->getFormalAccessScope(CurrDeclContext))) ||
         shouldHideDeclFromCompletionResults(VD))
       return;
 
@@ -2714,7 +2715,8 @@ public:
                          DeclVisibilityKind Reason,
                          bool HasTypeContext) {
     if (!EED->hasName() ||
-        (EED->hasAccessibility() && !EED->isAccessibleFrom(CurrDeclContext)) ||
+        (EED->hasAccessibility() &&
+          !EED->isAccessibleFrom(EED->getFormalAccessScope(CurrDeclContext))) ||
         shouldHideDeclFromCompletionResults(EED))
       return;
 
@@ -4287,7 +4289,8 @@ public:
 
     for (auto Conformance : NTD->getAllConformances()) {
       auto Proto = Conformance->getProtocol();
-      if (!Proto->isAccessibleFrom(CurrDeclContext))
+      auto protoAccessScope = Proto->getFormalAccessScope(CurrDeclContext);
+      if (!Proto->isAccessibleFrom(protoAccessScope))
         continue;
       auto NormalConformance = Conformance->getRootNormalConformance();
       for (auto Member : Proto->getMembers()) {

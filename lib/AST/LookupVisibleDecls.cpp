@@ -130,7 +130,7 @@ static bool isDeclVisibleInLookupMode(ValueDecl *Member, LookupState LS,
       FromContext->getASTContext().LangOpts.EnableAccessControl) {
     if (Member->isInvalid() && !Member->hasAccessibility())
       return false;
-    if (!Member->isAccessibleFrom(FromContext))
+    if (!Member->isAccessibleFrom(Member->getFormalAccessScope(FromContext)))
       return false;
   }
 
@@ -407,7 +407,7 @@ static void lookupDeclsFromProtocolsBeingConformedTo(
 
   for (auto Conformance : CurrNominal->getAllConformances()) {
     auto Proto = Conformance->getProtocol();
-    if (!Proto->isAccessibleFrom(FromContext))
+    if (!Proto->isAccessibleFrom(Proto->getFormalAccessScope(FromContext)))
       continue;
 
     DeclVisibilityKind ReasonForThisProtocol;

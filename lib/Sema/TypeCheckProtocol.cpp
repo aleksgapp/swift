@@ -1903,7 +1903,7 @@ void ConformanceChecker::recordTypeWitness(AssociatedTypeDecl *assocType,
         [DC, typeDecl, requiredAccessScope, assocType](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
         Accessibility requiredAccess =
-            requiredAccessScope.accessibilityForDiagnostics();
+            requiredAccessScope.accessibilityForDiagnostics(typeDecl);
         auto proto = conformance->getProtocol();
         bool protoForcesAccess =
             (requiredAccessScope == proto->getFormalAccessScope(DC));
@@ -2162,7 +2162,7 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
         [DC, witness, check, requirement](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
         Accessibility requiredAccess =
-            check.RequiredAccessScope.accessibilityForDiagnostics();
+            check.RequiredAccessScope.accessibilityForDiagnostics(witness);
 
         auto proto = conformance->getProtocol();
         bool protoForcesAccess =

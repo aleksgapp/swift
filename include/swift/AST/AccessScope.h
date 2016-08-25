@@ -54,7 +54,8 @@ public:
   /// Returns the associated access level for diagnostic purposes.
   ///
   /// \sa ValueDecl::getFormalAccessScope
-  Accessibility accessibilityForDiagnostics() const;
+  Accessibility
+  accessibilityForDiagnostics(const ValueDecl *VD = nullptr) const;
 
   const AccessScope intersectWith(const AccessScope accessScope) const {
     if (isPublic())

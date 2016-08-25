@@ -3623,14 +3623,17 @@ void swift::performStmtDiagnostics(TypeChecker &TC, const Stmt *S) {
 // Utility functions
 //===----------------------------------------------------------------------===//
 
-Accessibility AccessScope::accessibilityForDiagnostics() const {
+Accessibility
+AccessScope::accessibilityForDiagnostics(const ValueDecl *VD) const {
   if (isPublic())
     return Accessibility::Public;
   if (isa<ModuleDecl>(getDeclContext()))
     return Accessibility::Internal;
-  if (isModuleScopeContext() &&
-      getDeclContext()->getASTContext().LangOpts.EnableSwift3Private)
-    return Accessibility::FilePrivate;
+  if (isModuleScopeContext()) {
+    if (VD && !VD->getDeclContext()->isModuleScopeContext())
+      return Accessibility::FilePrivate;
+    return isPrivate() ? Accessibility::Private : Accessibility::FilePrivate;
+  }
 
   return Accessibility::Private;
 }

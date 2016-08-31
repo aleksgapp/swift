@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/Decl.h"
+#include "swift/AST/AccessScope.h"
 #include "swift/AST/ArchetypeBuilder.h"
 #include "swift/AST/AST.h"
 #include "swift/AST/ASTContext.h"
@@ -1901,18 +1902,16 @@ Accessibility ValueDecl::getFormalAccessImpl(const DeclContext *useDC) const {
   return getFormalAccess();
 }
 
-const DeclContext *
-ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
+AccessScope ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   const DeclContext *result = getDeclContext();
   Accessibility access = getFormalAccess(useDC);
 
   while (!result->isModuleScopeContext()) {
     if (result->isLocalContext())
-      return result;
+      return AccessScope(result);
 
-    if (access == Accessibility::Private) {
-      return result;
-    }
+    if (access == Accessibility::Private)
+      return AccessScope(result, true);
 
     if (auto enclosingNominal = dyn_cast<NominalTypeDecl>(result)) {
       access = std::min(access, enclosingNominal->getFormalAccess(useDC));
@@ -1937,15 +1936,15 @@ ValueDecl::getFormalAccessScope(const DeclContext *useDC) const {
   case Accessibility::Private:
   case Accessibility::FilePrivate:
     assert(result->isModuleScopeContext());
-    return result;
+    return AccessScope(result, access == Accessibility::Private);
   case Accessibility::Internal:
-    return result->getParentModule();
+    return AccessScope(result->getParentModule());
   case Accessibility::Public:
   case Accessibility::Open:
-    return nullptr;
+    return AccessScope::getPublic();
   }
 
-  return result;
+  llvm_unreachable("unknown accessibility level");
 }
 
 

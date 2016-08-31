@@ -1105,11 +1105,12 @@ ERROR(static_requires_initializer,none,
       "expression or getter/setter specifier", (StaticSpellingKind))
 ERROR(pattern_type_access,none,
       "%select{%select{variable|constant}0|property}1 "
-      "%select{must be declared %select{private|fileprivate|internal|PUBLIC}4"
+      "%select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}4|private or fileprivate}5"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}3}2 "
       "because its type uses "
       "%select{a private|a fileprivate|an internal|PUBLIC}4 type",
-      (bool, bool, bool, Accessibility, Accessibility))
+      (bool, bool, bool, Accessibility, Accessibility, bool))
 ERROR(pattern_type_access_inferred,none,
       "%select{%select{variable|constant}0|property}1 "
       "%select{must be declared %select{private|fileprivate|internal|PUBLIC}4"
@@ -1150,12 +1151,12 @@ ERROR(unsupported_nested_protocol,none,
 ERROR(circular_type_alias,none,
       "type alias %0 circularly references itself", (Identifier))
 ERROR(type_alias_underlying_type_access,none,
-      "type alias %select{must be declared "
-      "%select{private|fileprivate|internal|PUBLIC}2"
+      "type alias %select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}2|private or fileprivate}3"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}1}0 "
       "because its underlying type uses "
       "%select{a private|a fileprivate|an internal|PUBLIC}2 type",
-      (bool, Accessibility, Accessibility))
+      (bool, Accessibility, Accessibility, bool))
 
 // Subscripts
 ERROR(subscript_type_access,none,
@@ -1280,14 +1281,14 @@ ERROR(witness_not_accessible_proto,none,
       "%select{initializer %1|method %1|%select{|setter for }2property %1"
       "|subscript%select{| setter}2}0 must be declared "
       "%select{PRIVATE|fileprivate|internal|public}3 because it matches a "
-      "requirement in %select{PRIVATE|fileprivate|internal|public}3 protocol "
-      "%4",
-      (RequirementKind, DeclName, bool, Accessibility, DeclName))
+      "requirement in %select{private|fileprivate|internal|public}4 protocol "
+      "%5",
+      (RequirementKind, DeclName, bool, Accessibility, Accessibility, DeclName))
 ERROR(witness_not_accessible_type,none,
       "%select{initializer %1|method %1|%select{|setter for }2property %1"
       "|subscript%select{| setter}2}0 must be as accessible as its enclosing "
-      "type because it matches a requirement in protocol %4",
-      (RequirementKind, DeclName, bool, Accessibility, DeclName))
+      "type because it matches a requirement in protocol %5",
+      (RequirementKind, DeclName, bool, Accessibility, Accessibility, DeclName))
 ERROR(type_witness_not_accessible_proto,none,
       "%0 %1 must be declared %select{PRIVATE|fileprivate|internal|public}2 "
       "because it matches a requirement in "

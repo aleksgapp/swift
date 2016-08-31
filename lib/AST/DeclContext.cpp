@@ -847,7 +847,7 @@ AccessScope::accessibilityForDiagnostics() const {
   if (isa<ModuleDecl>(getDeclContext()))
     return Accessibility::Internal;
   if (getDeclContext()->isModuleScopeContext()) {
-    return Accessibility::FilePrivate;
+    return isPrivate() ? Accessibility::Private : Accessibility::FilePrivate;
   }
 
   return Accessibility::Private;

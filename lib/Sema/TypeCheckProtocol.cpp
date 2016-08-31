@@ -1903,8 +1903,11 @@ void ConformanceChecker::recordTypeWitness(AssociatedTypeDecl *assocType,
       diagnoseOrDefer(assocType, false,
         [DC, typeDecl, requiredAccessScope, assocType](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
-        Accessibility requiredAccess =
-            requiredAccessScope.accessibilityForDiagnostics();
+        // The real requirement is that the type should be accessible
+        // from outside the outer type body if access scope is per-file
+        Accessibility requiredAccess = requiredAccessScope.isFileScope()
+            ? Accessibility::FilePrivate
+            : requiredAccessScope.accessibilityForDiagnostics();
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
         bool protoForcesAccess =
@@ -2163,8 +2166,13 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
       diagnoseOrDefer(requirement, false,
         [DC, witness, check, requirement](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
-        Accessibility requiredAccess =
-            check.RequiredAccessScope.accessibilityForDiagnostics();
+        auto requiredAccessScope = check.RequiredAccessScope;
+
+        // The real requirement is that the method should be callable
+        // from outside the type body if the access scope is per-file
+        Accessibility requiredAccess = requiredAccessScope.isFileScope()
+          ? Accessibility::FilePrivate
+          : requiredAccessScope.accessibilityForDiagnostics();
 
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
@@ -2180,6 +2188,7 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
                                 witness->getFullName(),
                                 isSetter,
                                 requiredAccess,
+                                protoAccessScope.accessibilityForDiagnostics(),
                                 proto->getName());
         fixItAccessibility(diag, witness, requiredAccess, isSetter);
       });

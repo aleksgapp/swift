@@ -1699,7 +1699,8 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
                                 isTypeContext,
                                 isExplicit,
                                 anyVar->getFormalAccess(),
-                                typeAccess);
+                                typeAccess,
+                                typeAccessScope.isFileScope());
         highlightOffendingType(TC, diag, complainRepr);
       });
     });
@@ -1716,7 +1717,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       bool isExplicit = TAD->getAttrs().hasAttribute<AccessibilityAttr>();
       auto diag = TC.diagnose(TAD, diag::type_alias_underlying_type_access,
                               isExplicit, TAD->getFormalAccess(),
-                              typeAccess);
+                              typeAccess, typeAccessScope.isFileScope());
       highlightOffendingType(TC, diag, complainRepr);
     });
 

@@ -1586,14 +1586,13 @@ static void checkGenericParamAccessibility(TypeChecker &TC,
 
   if (!minAccessScope.isPublic()) {
     auto minAccess = minAccessScope.accessibilityForDiagnostics();
-
     bool isExplicit =
       owner->getAttrs().hasAttribute<AccessibilityAttr>() ||
       owner->getDeclContext()->getAsProtocolOrProtocolExtensionContext();
     auto diag = TC.diagnose(owner, diag::generic_param_access,
                             owner->getDescriptiveKind(), isExplicit,
-                            contextAccess, minAccess,
-                            accessibilityErrorKind);
+                            contextAccess, minAccess, accessibilityErrorKind,
+                            minAccessScope.isFileScope());
     highlightOffendingType(TC, diag, complainRepr);
   }
 }
@@ -1793,7 +1792,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
         bool isExplicit = ED->getAttrs().hasAttribute<AccessibilityAttr>();
         auto diag = TC.diagnose(ED, diag::enum_raw_type_access,
                                 isExplicit, ED->getFormalAccess(),
-                                typeAccess);
+                                typeAccess, typeAccessScope.isFileScope());
         highlightOffendingType(TC, diag, complainRepr);
       });
     }
@@ -1830,7 +1829,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
         bool isExplicit = CD->getAttrs().hasAttribute<AccessibilityAttr>();
         auto diag = TC.diagnose(CD, diag::class_super_access,
                                 isExplicit, CD->getFormalAccess(),
-                                typeAccess);
+                                typeAccess, typeAccessScope.isFileScope());
         highlightOffendingType(TC, diag, complainRepr);
       });
     }
@@ -1862,7 +1861,8 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
       auto minAccess = minAccessScope.accessibilityForDiagnostics();
       bool isExplicit = proto->getAttrs().hasAttribute<AccessibilityAttr>();
       auto diag = TC.diagnose(proto, diag::protocol_refine_access,
-                              isExplicit, proto->getFormalAccess(), minAccess);
+                              isExplicit, proto->getFormalAccess(),
+                              minAccess, minAccessScope.isFileScope());
       highlightOffendingType(TC, diag, complainRepr);
     }
     return;
@@ -1961,6 +1961,9 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
 
     if (!minAccessScope.isPublic()) {
       auto minAccess = minAccessScope.accessibilityForDiagnostics();
+      auto functionKind = isa<ConstructorDecl>(fn)
+        ? FK_Initializer
+        : isTypeContext ? FK_Method : FK_Function;
       bool isExplicit =
         fn->getAttrs().hasAttribute<AccessibilityAttr>() ||
         D->getDeclContext()->getAsProtocolOrProtocolExtensionContext();
@@ -1968,9 +1971,9 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
                               isExplicit,
                               fn->getFormalAccess(),
                               minAccess,
-                              isa<ConstructorDecl>(fn) ? FK_Initializer :
-                                isTypeContext ? FK_Method : FK_Function,
-                              problemIsResult);
+                              functionKind,
+                              problemIsResult,
+                              minAccessScope.isFileScope());
       highlightOffendingType(TC, diag, complainRepr);
     }
     return;

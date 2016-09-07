@@ -1170,11 +1170,12 @@ ERROR(subscript_type_access,none,
 // Functions
 ERROR(function_type_access,none,
       "%select{function|method|initializer}3 "
-      "%select{must be declared %select{private|fileprivate|internal|PUBLIC}2"
+      "%select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}2|private or fileprivate}5"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}1}0 "
       "because its %select{parameter|result}4 uses "
       "%select{a private|a fileprivate|an internal|PUBLIC}2 type",
-      (bool, Accessibility, Accessibility, unsigned, bool))
+      (bool, Accessibility, Accessibility, unsigned, bool, bool))
 WARNING(non_trailing_closure_before_default_args,none,
         "closure parameter prior to parameters with default arguments will "
         "not be treated as a trailing closure", ())
@@ -1300,11 +1301,12 @@ ERROR(type_witness_not_accessible_type,none,
       (DescriptiveDeclKind, DeclName, Accessibility, DeclName))
 
 ERROR(protocol_refine_access,none,
-      "%select{protocol must be declared "
-      "%select{private|fileprivate|internal|PUBLIC}2 because it refines"
+      "%select{protocol must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}2"
+      "|private or fileprivate}3 because it refines"
       "|%select{PRIVATE|fileprivate|internal|public}1 protocol cannot "
       "refine}0 %select{a private|a fileprivate|an internal|PUBLIC}2 protocol",
-      (bool, Accessibility, Accessibility))
+      (bool, Accessibility, Accessibility, bool))
 ERROR(protocol_property_must_be_computed_var,none,
       "immutable property requirement must be declared as 'var' with a "
       "'{ get }' specifier", ())
@@ -1489,12 +1491,12 @@ ERROR(requires_generic_param_same_type_does_not_conform,none,
       (Type, Identifier))
 
 ERROR(generic_param_access,none,
-      "%0 %select{must be declared "
-      "%select{private|fileprivate|internal|PUBLIC}3"
+      "%0 %select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}3|private or fileprivate}5"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}2}1 "
       "because its generic %select{parameter|requirement}4 uses "
       "%select{a private|a fileprivate|an internal|PUBLIC}3 type",
-      (DescriptiveDeclKind, bool, Accessibility, Accessibility, bool))
+      (DescriptiveDeclKind, bool, Accessibility, Accessibility, bool, bool))
 
 ERROR(override_multiple_decls_base,none,
       "declaration %0 cannot override more than one superclass declaration",
@@ -1709,12 +1711,12 @@ ERROR(enum_raw_type_nonconforming_and_nonsynthable,none,
 NOTE(enum_declares_rawrep_with_raw_type,none,
       "%0 declares raw type %1, which implies RawRepresentable", (Type, Type))
 ERROR(enum_raw_type_access,none,
-      "enum %select{must be declared "
-      "%select{private|fileprivate|internal|PUBLIC}2"
+      "enum %select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}2|private or fileprivate}3"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}1}0 "
       "because its raw type uses "
       "%select{a private|a fileprivate|an internal|PUBLIC}2 type",
-      (bool, Accessibility, Accessibility))
+      (bool, Accessibility, Accessibility, bool))
 
 NOTE(enum_here,none,
      "enum %0 declared here", (Identifier))
@@ -2629,12 +2631,12 @@ ERROR(self_in_nominal,none,
       "'Self' is only available in a protocol or as the result of a "
       "method in a class; did you mean %0?", (Identifier))
 ERROR(class_super_access,none,
-      "class %select{must be declared "
-      "%select{private|fileprivate|internal|PUBLIC}2"
+      "class %select{must be declared %select{"
+      "%select{private|fileprivate|internal|PUBLIC}2|private or fileprivate}3"
       "|cannot be declared %select{PRIVATE|fileprivate|internal|public}1}0 "
       "because its superclass is "
       "%select{private|fileprivate|internal|PUBLIC}2",
-      (bool, Accessibility, Accessibility))
+      (bool, Accessibility, Accessibility, bool))
 ERROR(dot_protocol_on_non_existential,none,
       "cannot use 'Protocol' with non-protocol type %0", (Type))
 ERROR(tuple_single_element,none,

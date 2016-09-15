@@ -1921,9 +1921,8 @@ void ConformanceChecker::recordTypeWitness(AssociatedTypeDecl *assocType,
           TypeChecker &tc, NormalProtocolConformance *conformance) {
         // The real requirement is that the type should be accessible
         // from outside the outer type body if access scope is per-file
-        Accessibility requiredAccess = requiredAccessScope.isFileScope()
-            ? Accessibility::FilePrivate
-            : requiredAccessScope.accessibilityForDiagnostics();
+        Accessibility requiredAccess =
+          requiredAccessScope.requiredAccessibilityForDiagnostics();
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
         bool protoForcesAccess =
@@ -2205,13 +2204,6 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
         [DC, witness, check, requirement](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
         auto requiredAccessScope = check.RequiredAccessScope;
-
-        // The real requirement is that the method should be callable
-        // from outside the type body if the access scope is per-file
-        Accessibility requiredAccess = requiredAccessScope.isFileScope()
-          ? Accessibility::FilePrivate
-          : requiredAccessScope.accessibilityForDiagnostics();
-
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
         bool protoForcesAccess =
@@ -2220,6 +2212,8 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
                           ? diag::witness_not_accessible_proto
                           : diag::witness_not_accessible_type;
         bool isSetter = (check.Kind == CheckKind::AccessibilityOfSetter);
+        Accessibility requiredAccess =
+          requiredAccessScope.requiredAccessibilityForDiagnostics();
 
         auto diag = tc.diagnose(witness, diagKind,
                                 getRequirementKind(requirement),

@@ -63,6 +63,13 @@ public:
   /// Returns the associated access level for diagnostic purposes.
   Accessibility accessibilityForDiagnostics() const;
 
+  ///
+  Accessibility requiredAccessibilityForDiagnostics() const {
+    return isFileScope()
+      ? Accessibility::FilePrivate
+      : accessibilityForDiagnostics();
+  }
+
   /// Returns the narrowest access scope if this and the specified access scope
   /// have common intersection, or None if scopes don't intersect.
   const Optional<AccessScope> intersectWith(AccessScope accessScope) const {

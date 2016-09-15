@@ -1678,8 +1678,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
             theVar->getAttrs().hasAttribute<AccessibilityAttr>();
           auto theVarAccess = isExplicit
             ? theVar->getFormalAccess()
-            : typeAccessScope.isFileScope()
-              ? Accessibility::FilePrivate : typeAccess;
+            : typeAccessScope.requiredAccessibilityForDiagnostics();
           auto diag = TC.diagnose(P->getLoc(),
                                   diag::pattern_type_access_inferred,
                                   theVar->isLet(), isTypeContext, isExplicit,
@@ -1713,8 +1712,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
           anyVar->getDeclContext()->getAsProtocolOrProtocolExtensionContext();
         auto anyVarAccess = isExplicit
           ? anyVar->getFormalAccess()
-          : typeAccessScope.isFileScope()
-            ? Accessibility::FilePrivate : typeAccess;
+          : typeAccessScope.requiredAccessibilityForDiagnostics();
         auto diag = TC.diagnose(P->getLoc(), diag::pattern_type_access,
                                 anyVar->isLet(), isTypeContext,
                                 isExplicit, anyVarAccess, typeAccess,
@@ -1923,7 +1921,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
         SD->getDeclContext()->getAsProtocolOrProtocolExtensionContext();
       auto subscriptDeclAccess = isExplicit
         ? SD->getFormalAccess()
-        : minAccessScope.isFileScope() ? Accessibility::FilePrivate : minAccess;
+        : minAccessScope.requiredAccessibilityForDiagnostics();
       auto diag = TC.diagnose(SD, diag::subscript_type_access, isExplicit,
                               subscriptDeclAccess, minAccess, problemIsElement);
       highlightOffendingType(TC, diag, complainRepr);
@@ -1988,7 +1986,7 @@ static void checkAccessibility(TypeChecker &TC, const Decl *D) {
         fn->getDeclContext()->getAsProtocolOrProtocolExtensionContext();
       auto fnAccess = isExplicit
         ? fn->getFormalAccess()
-        : minAccessScope.isFileScope() ? Accessibility::FilePrivate : minAccess;
+        : minAccessScope.requiredAccessibilityForDiagnostics();
       auto diag = TC.diagnose(fn, diag::function_type_access, isExplicit,
                               fnAccess, minAccess, functionKind,
                               problemIsResult,
@@ -5601,9 +5599,8 @@ public:
           bool overriddenForcesAccess =
             (requiredAccessScope->hasEqualDeclContextWith(matchAccessScope) &&
              matchAccess != Accessibility::Open);
-          Accessibility requiredAccess = requiredAccessScope->isFileScope()
-            ? Accessibility::FilePrivate
-            : requiredAccessScope->accessibilityForDiagnostics();
+          Accessibility requiredAccess =
+            requiredAccessScope->requiredAccessibilityForDiagnostics();
           {
             auto diag = TC.diagnose(decl, diag::override_not_accessible,
                                     shouldDiagnoseSetter,

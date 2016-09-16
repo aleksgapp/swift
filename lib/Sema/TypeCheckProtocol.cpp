@@ -1919,8 +1919,9 @@ void ConformanceChecker::recordTypeWitness(AssociatedTypeDecl *assocType,
       diagnoseOrDefer(assocType, false,
         [DC, typeDecl, requiredAccessScope, assocType](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
-        Accessibility requiredAccess =
-            requiredAccessScope.accessibilityForDiagnostics();
+        Accessibility requiredAccess = requiredAccessScope.isFileScope()
+            ? Accessibility::FilePrivate
+            : requiredAccessScope.accessibilityForDiagnostics();
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
         bool protoForcesAccess =
@@ -2201,9 +2202,10 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
       diagnoseOrDefer(requirement, false,
         [DC, witness, check, requirement](
           TypeChecker &tc, NormalProtocolConformance *conformance) {
-        Accessibility requiredAccess =
-            check.RequiredAccessScope.accessibilityForDiagnostics();
-
+        auto requiredAccessScope = check.RequiredAccessScope;
+        Accessibility requiredAccess = requiredAccessScope.isFileScope()
+          ? Accessibility::FilePrivate
+          : requiredAccessScope.accessibilityForDiagnostics();
         auto proto = conformance->getProtocol();
         auto protoAccessScope = proto->getFormalAccessScope(DC);
         bool protoForcesAccess =
@@ -2218,6 +2220,7 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
                                 witness->getFullName(),
                                 isSetter,
                                 requiredAccess,
+                                protoAccessScope.accessibilityForDiagnostics(),
                                 proto->getName());
         fixItAccessibility(diag, witness, requiredAccess, isSetter);
       });

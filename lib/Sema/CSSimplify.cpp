@@ -4823,6 +4823,32 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyConformsToConstraint(
   } break;
   case ConstraintKind::ConformsTo:
   case ConstraintKind::LiteralConformsTo: {
+    if (auto fnTy = type->getAs<FunctionType>()) {
+      if (protocol->requiresClass()) {
+        return SolutionKind::Error;
+      }
+
+      auto &ctx = protocol->getASTContext();
+      auto results = TypeChecker::lookupMember(
+          DC, protocol->getDeclaredType(), DeclNameRef(ctx.Id_callAsFunction),
+          defaultMemberLookupOptions);
+
+      if (results.size() != 1)
+        return SolutionKind::Error;
+
+      if (auto requirement =
+              dyn_cast<FuncDecl>(results.front().getValueDecl())) {
+        if (auto *reqFnTy =
+                requirement->getMethodInterfaceType()->getAs<FunctionType>()) {
+          // FIXME: check flags and constraint kind
+          return matchFunctionTypes(reqFnTy, fnTy, ConstraintKind::Equal,
+                                    flags, locator);
+        }
+      }
+
+      return SolutionKind::Error;
+    }
+
     // Check whether this type conforms to the protocol.
     auto conformance = TypeChecker::conformsToProtocol(
         type, protocol, DC,

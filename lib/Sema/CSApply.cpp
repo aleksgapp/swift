@@ -106,7 +106,14 @@ Solution::resolveConcreteDeclRef(ValueDecl *decl,
 
   // Get the generic signatue of the decl and compute the substitutions.
   auto sig = decl->getInnermostDeclContext()->getGenericSignatureOfContext();
-  return ConcreteDeclRef(decl, computeSubstitutions(sig, locator));
+  auto substitutions = computeSubstitutions(sig, locator);
+
+  for (auto& conformanceRef : substitutions.getConformances()) {
+    if (conformanceRef.isInvalid())
+      llvm::errs() << "Missing conformance in solution. \n";
+  }
+
+  return ConcreteDeclRef(decl, substitutions);
 }
 
 static bool shouldAccessStorageDirectly(Expr *base, VarDecl *member,
@@ -5079,16 +5086,16 @@ Expr *ExprRewriter::coerceCallArguments(Expr *arg, AnyFunctionType *funcType,
   // Quickly test if any further fix-ups for the argument types are necessary.
   if (AnyFunctionType::equalParams(args, params)) {
     if (callee.isSpecialized()) {
-      /*
       auto calleeTy =
         callee.getDecl()->getInterfaceType()->getAs<GenericFunctionType>();
-      auto sig = callee.getSubstitutions().getGenericSignature();
-      auto reqBuf = sig->getRequirements();
+      auto genericSig = callee.getSubstitutions().getGenericSignature();
+
+      auto reqBuf = genericSig->getRequirements();
       for (auto &req : reqBuf) {
         if (req.getKind() != RequirementKind::Conformance)
           continue;
       }
-      */
+
       // Apply labels to arguments.
       AnyFunctionType::relabelParams(args, argLabels);
 
@@ -5100,6 +5107,14 @@ Expr *ExprRewriter::coerceCallArguments(Expr *arg, AnyFunctionType *funcType,
                                                     /*allowFixes=*/false,
                                                     listener,
                                                     parameterBindings);
+      if (auto fn = dyn_cast<FuncDecl>(callee.getDecl())) {
+        auto gen = fn->getGenericParams();
+      }
+      for (unsigned paramIdx = 0, numParams = parameterBindings.size();
+           paramIdx != numParams; ++paramIdx) {
+        // Extract the parameter.
+        const auto &param = params[paramIdx];
+      }
     }
     return arg;
   }

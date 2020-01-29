@@ -5077,8 +5077,32 @@ Expr *ExprRewriter::coerceCallArguments(Expr *arg, AnyFunctionType *funcType,
   AnyFunctionType::decomposeInput(cs.getType(arg), args);
 
   // Quickly test if any further fix-ups for the argument types are necessary.
-  if (AnyFunctionType::equalParams(args, params))
+  if (AnyFunctionType::equalParams(args, params)) {
+    if (callee.isSpecialized()) {
+      /*
+      auto calleeTy =
+        callee.getDecl()->getInterfaceType()->getAs<GenericFunctionType>();
+      auto sig = callee.getSubstitutions().getGenericSignature();
+      auto reqBuf = sig->getRequirements();
+      for (auto &req : reqBuf) {
+        if (req.getKind() != RequirementKind::Conformance)
+          continue;
+      }
+      */
+      // Apply labels to arguments.
+      AnyFunctionType::relabelParams(args, argLabels);
+
+      MatchCallArgumentListener listener;
+      SmallVector<ParamBinding, 4> parameterBindings;
+      bool failed = constraints::matchCallArguments(args, params,
+                                                    paramInfo,
+                                                    hasTrailingClosure,
+                                                    /*allowFixes=*/false,
+                                                    listener,
+                                                    parameterBindings);
+    }
     return arg;
+  }
 
   // Apply labels to arguments.
   AnyFunctionType::relabelParams(args, argLabels);
